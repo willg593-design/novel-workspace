@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workspace นักเขียน</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f8f9fa; --panel: #ffffff; --text: #2d3436; --muted: #636e72; --border: #dfe6e9;
+  --accent: #0984e3; --accent-hover: #74b9ff; --danger: #d63031; --done: #00b894; --draft: #f39c12;
+  --shadow: 0 4px 12px rgba(0,0,0,0.05);
+  --radius: 12px;
+  box-sizing: border-box;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Sarabun', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+h1, h2, h3, h4 { margin: 0 0 10px; color: #2d3436; }
+h1 { font-size: 24px; font-weight: 700; }
+
+/* Layout */
+.app { display: flex; height: 100vh; position: relative; z-index: 1; }
+.sidebar { width: 280px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.main { flex: 1; padding: 30px 40px; overflow-y: auto; background: var(--bg); }
+.container { max-width: 1000px; margin: 0 auto; }
+
+/* Buttons & Inputs */
+button { font-family: inherit; cursor: pointer; border: none; border-radius: 8px; padding: 10px 16px; background: var(--accent); color: #fff; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+button:hover { background: var(--accent-hover); transform: translateY(-1px); }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+button.ghost:hover { background: rgba(9, 132, 227, 0.1); }
+button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+button.danger:hover { background: rgba(214, 48, 49, 0.1); }
+button.small { padding: 6px 12px; font-size: 13px; }
+
+/* ปุ่มกากบาท (ลบ) แบบสวยงาม ชิดขอบ */
+button.btn-close {
+  background: transparent; color: var(--muted); border: none; font-size: 16px; padding: 0; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0;
+  transition: all 0.2s ease; margin: 0;
+}
+button.btn-close:hover { background: #fee2e2; color: #dc2626; transform: none; }
+
+input, textarea, select { font-family: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 14px; width: 100%; transition: border 0.2s; color: var(--text); }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); outline: none; }
+textarea { resize: vertical; min-height: 80px; }
+
+/* Components */
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.row.nowrap { flex-wrap: nowrap; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 24px; overflow-x: auto; padding-bottom: 2px; }
+.tab { padding: 10px 20px; cursor: pointer; color: var(--muted); font-weight: 600; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; }
+.tab:hover { color: var(--accent); }
+.tab.active { color: var(--accent); border-color: var(--accent); }
+
+/* Badges & Chips */
+.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; color: #fff; }
+.badge.writing { background: #0984e3; } .badge.done { background: var(--done); } .badge.paused { background: var(--muted); }
+.badge.draft { background: var(--draft); } .badge.final { background: var(--done); }
+.chip { background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; color: var(--text); transition: background 0.2s; }
+.chip button { background: none; color: var(--muted); padding: 0; font-size: 14px; line-height: 1; border: none; min-width: auto; cursor: pointer; }
+.chip button:hover { color: var(--danger); transform: none; }
+
+/* Novel List */
+.novel-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; background: var(--bg); }
+.novel-item:hover { border-color: var(--border); background: #fdfdfd; }
+.novel-item.active { background: var(--accent); color: #fff; box-shadow: 0 4px 10px rgba(9,132,227,0.2); }
+.novel-item.active .muted { color: rgba(255,255,255,0.8); }
+.muted { color: var(--muted); font-size: 13px; }
+
+/* Image Upload UI (แบบกล่องเล็ก สำหรับปก/ตัวละคร) */
+.img-upload-box { width: 120px; height: 120px; border: 2px dashed var(--border); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; background: var(--bg); position: relative; flex-shrink: 0; }
+.img-upload-box img { width: 100%; height: 100%; object-fit: cover; }
+.img-upload-box::after { content: '+ รูปภาพ'; position: absolute; font-size: 13px; color: var(--muted); font-weight: 600; opacity: 1; transition: opacity 0.2s; }
+.img-upload-box.has-img::after { opacity: 0; }
+.img-upload-box:hover::after { opacity: 1; background: rgba(255,255,255,0.7); padding: 4px 8px; border-radius: 4px; color: var(--text); }
+
+/* Image Upload UI (แบบกว้าง สำหรับไอเดีย) */
+.img-upload-wide { width: 100%; min-height: 100px; border: 2px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; background: var(--bg); position: relative; margin-top: 8px; transition: border-color 0.2s; }
+.img-upload-wide:hover { border-color: var(--accent); }
+.img-upload-wide img { width: 100%; max-height: 300px; object-fit: contain; background: #000; }
+.img-upload-wide .placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--muted); }
+.img-upload-wide .placeholder svg { width: 32px; height: 32px; fill: currentColor; }
+.img-upload-wide.has-img .placeholder { display: none; }
+.img-upload-wide.has-img:hover::after { content: 'คลิกเพื่อเปลี่ยนรูปภาพ'; position: absolute; background: rgba(0,0,0,0.6); color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 13px; }
+
+/* Image Modal (สำหรับขยายรูป) */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; }
+.modal-overlay.show { display: flex; opacity: 1; }
+.modal-content { max-width: 90%; max-height: 90%; position: relative; }
+.modal-content img { max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.modal-close { position: absolute; top: -40px; right: 0; background: none; border: none; color: #fff; font-size: 30px; cursor: pointer; padding: 0; }
+
+/* Specific Sections */
+.plot-board { border-left: 3px solid var(--accent); padding-left: 16px; margin-bottom: 16px; position: relative; }
+.plot-board::before { content: ''; position: absolute; left: -8px; top: 12px; width: 13px; height: 13px; background: var(--accent); border-radius: 50%; }
+.rel-item { display: flex; align-items: center; gap: 10px; background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
+.rel-arrow { color: var(--accent); font-weight: bold; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+.stats { display: flex; gap: 20px; margin: 12px 0 24px; flex-wrap: wrap; background: var(--panel); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.stats div { font-size: 13px; color: var(--muted); }
+.stats b { color: var(--text); font-size: 18px; display: block; font-weight: 700; }
+label { font-size: 13px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px; }
+.field { margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<!-- Modal สำหรับขยายรูปภาพ -->
+<div id="imageModal" class="modal-overlay" onclick="closeModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <img id="modalImg" src="">
+  </div>
+</div>
+
+<div class="app">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main">
+    <div class="container" id="main"></div>
+  </div>
+</div>
+
+<script>
+const STORE_KEY = 'novelProSafeV2'; // อัปเดต Key
+let state = null;
+let ui = { selectedNovelId: null, tab: 'info', editingChapterId: null, filterCat: '' };
+const STATUS_LABEL = { writing: 'กำลังเขียน', done: 'จบแล้ว', paused: 'พักไว้' };
+
+// ฟังก์ชัน Modal รูปภาพ
+function openModal(imgSrc) {
+  if (!imgSrc) return;
+  const modal = document.getElementById('imageModal');
+  const modalImg = document.getElementById('modalImg');
+  modalImg.src = imgSrc;
+  modal.classList.add('show');
+}
+function closeModal() {
+  const modal = document.getElementById('imageModal');
+  modal.classList.remove('show');
+}
+
+// เติมโครงสร้างข้อมูล
+function normalize(data) {
+  if (!data) data = {};
+  if (typeof data !== 'object') data = {};
+  if (!data.categoryList) data.categoryList = ['แฟนตาซี','โรแมนซ์','สยองขวัญ','ดราม่า','ผจญภัย','สืบสวน','ไซไฟ','ตลก','สไลซ์ออฟไลฟ์'];
+  if (!Array.isArray(data.categoryList)) data.categoryList = ['แฟนตาซี','โรแมนซ์','สยองขวัญ','ดราม่า','ผจญภัย','สืบสวน','ไซไฟ','ตลก','สไลซ์ออฟไลฟ์'];
+  if (!data.novels) data.novels = [];
+  if (!Array.isArray(data.novels)) data.novels = [];
+
+  data.novels.forEach(n => {
+    n.id = n.id ? n.id : uid();
+    n.title = n.title ? n.title : 'นิยายเรื่องใหม่';
+    n.synopsis = n.synopsis ? n.synopsis : '';
+    n.coverImage = n.coverImage ? n.coverImage : '';
+    n.status = n.status ? n.status : 'writing';
+    n.createdAt = n.createdAt ? n.createdAt : new Date().toISOString();
+    n.categories = Array.isArray(n.categories) ? n.categories : [];
+    n.tags = Array.isArray(n.tags) ? n.tags : [];
+    n.chapters = Array.isArray(n.chapters) ? n.chapters : [];
+    n.characters = Array.isArray(n.characters) ? n.characters : [];
+    n.world = Array.isArray(n.world) ? n.world : [];
+    n.plot = Array.isArray(n.plot) ? n.plot : [];
+    n.glossary = Array.isArray(n.glossary) ? n.glossary : [];
+    n.relationships = Array.isArray(n.relationships) ? n.relationships : [];
+    n.ideas = Array.isArray(n.ideas) ? n.ideas : []; 
+
+    n.chapters.forEach(ch => {
+      ch.id = ch.id ? ch.id : uid();
+      ch.order = typeof ch.order === 'number' ? ch.order : 1;
+      ch.title = ch.title ? ch.title : '';
+      ch.content = ch.content ? ch.content : '';
+      ch.isDraft = ch.isDraft !== undefined ? ch.isDraft : true;
+      ch.updatedAt = ch.updatedAt ? ch.updatedAt : new Date().toISOString();
+    });
+
+    n.characters.forEach(c => {
+      c.id = c.id ? c.id : uid();
+      c.name = c.name ? c.name : '';
+      c.role = c.role ? c.role : '';
+      c.firstApp = c.firstApp ? c.firstApp : '';
+      c.image = c.image ? c.image : '';
+      c.physical = c.physical ? c.physical : '';
+      c.background = c.background ? c.background : '';
+      c.personality = c.personality ? c.personality : '';
+      c.traits = c.traits ? c.traits : '';
+      c.otherInfo = c.otherInfo ? c.otherInfo : ''; 
+    });
+
+    n.glossary.forEach(g => {
+      g.id = g.id ? g.id : uid();
+      g.word = g.word ? g.word : '';
+      g.meaning = g.meaning ? g.meaning : '';
+      g.note = g.note ? g.note : '';
+      g.tag = g.tag ? g.tag : ''; 
+    });
+
+    n.ideas.forEach(idea => {
+      idea.id = idea.id ? idea.id : uid();
+      idea.title = idea.title ? idea.title : '';
+      idea.detail = idea.detail ? idea.detail : '';
+      idea.image = idea.image ? idea.image : '';
+    });
+  });
+  return data;
+}
+
+// --- Storage & Helper ---
+function load() {
+  let loadedData = null;
+  try { 
+    const raw = localStorage.getItem(STORE_KEY); 
+    if (raw) loadedData = JSON.parse(raw); 
+  } catch(e) {}
+  
+  if (!loadedData) {
+    loadedData = {
+      novels: [{
+        id: uid(), title: 'โปรเจกต์นิยายเรื่องใหม่', synopsis: '', coverImage: '',
+        chapters: [{ id: uid(), order: 1, title: 'บทนำ', content: 'พิมพ์เนื้อหาตอนที่ 1 ที่นี่...', isDraft: true, updatedAt: new Date().toISOString() }],
+        characters: [{ id: uid(), name: 'ตัวละครตัวอย่าง', role: 'ตัวเอก', firstApp: 'บทนำ', image: '', physical: '', background: '', personality: 'แค่ต้องการพลังงานความเคลื่อนไหวของคนอื่นเพื่อไม่ให้ห้องมันเงียบและน่าเบื่อจนเกินไป', traits: '', otherInfo: '' }],
+        relationships: [], world: [], tags: [], categories: [],
+        plot: [{ id: uid(), title: 'Act 1: จุดเริ่มต้น (Setup)', detail: 'แนะนำโลกและตัวเอก...' }],
+        glossary: [{ id: uid(), word: 'เซนติเนล (Sentinel)', meaning: 'ผู้ที่มีสัมผัสทั้ง 5 เฉียบคมกว่าคนปกติ', note: 'มักจะเกิดอาการโอเวอร์โหลดได้ง่าย', tag: 'ระบบพลัง' }],
+        ideas: [{ id: uid(), title: 'ไอเดียฉากจบ', detail: 'อาจจะให้ตัวเอกเสียสละพลังทั้งหมดเพื่อช่วยนางเอก...', image: '' }]
+      }]
+    };
+  }
+  return normalize(loadedData);
+}
+
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+function esc(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function countText(t) {
+  let str = t || '';
+  const chars = str.replace(/\s/g,'').length;
+  const wordsBySpace = str.trim() ? str.trim().split(/\s+/).length : 0;
+  return { chars, wordsBySpace };
+}
+function getNovel(id) { 
+  let targetId = id ? id : ui.selectedNovelId;
+  return state.novels.find(n => n.id === targetId); 
+}
+
+// รูปแบบอัปโหลด 2 แบบ (คลิกธรรมดาอัปโหลด, คลิกปุ่มค้นหาเพื่อขยายรูป)
+function handleImageUpload(element, callback) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = event => callback(event.target.result);
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function triggerUploadOrView(e, imgSrc, callback) {
+  // ถ้ารูปมีอยู่แล้ว และกดคลิกตรงรูป ให้ขยาย
+  // แต่ถ้าต้องการเปลี่ยนรูป ให้กดปุ่มอัปโหลด (เราจะรวมไว้ด้วยกัน ถ้ามีรูปแล้วคลิกจะขยาย ถ้าอยากเปลี่ยนค่อยกดปุ่มเปลี่ยน)
+  if (imgSrc) {
+    openModal(imgSrc);
+  } else {
+    handleImageUpload(null, callback);
+  }
+}
+
+// --- Actions ---
+function addNovel() {
+  const title = prompt('ชื่อนิยายเรื่องใหม่:'); if (!title) return;
+  const n = normalize({ novels: [{ title: title }] }).novels[0];
+  state.novels.unshift(n); ui.selectedNovelId = n.id; ui.tab = 'info'; ui.editingChapterId = null; save(); render();
+}
+function deleteNovel(id) {
+  if(!confirm('ลบเรื่องนี้ทั้งหมด? (ลบข้อมูลทุกอย่างในเรื่องนี้)')) return;
+  state.novels = state.novels.filter(n => n.id !== id);
+  if(ui.selectedNovelId === id) ui.selectedNovelId = null;
+  save(); render();
+}
+function selectNovel(id) { ui.selectedNovelId = id; ui.tab = 'info'; ui.editingChapterId = null; render(); }
+function setTab(t) { ui.tab = t; ui.editingChapterId = null; renderTabsContentOnly(); }
+
+// --- Render Core ---
+function renderSidebar() {
+  const el = document.getElementById('sidebar');
+  const filtered = ui.filterCat ? state.novels.filter(n => n.categories.includes(ui.filterCat)) : state.novels;
+  
+  let listHtml = '';
+  if (filtered.length > 0) {
+    listHtml = filtered.map(n => `
+      <div class="novel-item ${n.id === ui.selectedNovelId ? 'active' : ''}" onclick="selectNovel('${n.id}')">
+        <div style="font-weight:600; font-size:15px; margin-bottom:4px">${esc(n.title)}</div>
+        <div class="muted">${STATUS_LABEL[n.status] || n.status} • ${n.chapters.length} ตอน</div>
+      </div>
+    `).join('');
+  } else {
+    listHtml = '<div class="empty-state" style="padding:20px;">ยังไม่มีเรื่อง</div>';
+  }
+
+  el.innerHTML = `
+    <h2>📚 คลังนิยาย</h2>
+    <button onclick="addNovel()" style="width:100%">+ สร้างเรื่องใหม่</button>
+    <select onchange="ui.filterCat=this.value; render()" style="margin-top:10px; margin-bottom:10px;">
+      <option value="">-- ทุกหมวดหมู่ --</option>
+      ${state.categoryList.map(c => `<option value="${esc(c)}" ${ui.filterCat === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+    </select>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      ${listHtml}
+    </div>`;
+}
+
+function renderMain() {
+  const el = document.getElementById('main');
+  const n = getNovel();
+  if (!n) { el.innerHTML = '<div class="empty-state"><h3>ยังไม่ได้เลือกนิยาย</h3><p>เลือกจากเมนูด้านซ้าย หรือสร้างเรื่องใหม่เพื่อเริ่มต้น</p></div>'; return; }
+
+  const totalChars = n.chapters.reduce((s,c) => s + countText(c.content).chars, 0);
+  const totalWords = n.chapters.reduce((s,c) => s + countText(c.content).wordsBySpace, 0);
+  const statusBadge = STATUS_LABEL[n.status] || n.status;
+
+  el.innerHTML = `
+    <div class="row" style="margin-bottom:24px; align-items:flex-end;">
+      <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+        <div class="img-upload-box ${n.coverImage ? 'has-img' : ''}" onclick="triggerUploadOrView(event, '${n.coverImage}', img => { getNovel().coverImage = img; save(); render(); })">
+          ${n.coverImage ? `<img src="${n.coverImage}">` : ''}
+        </div>
+        ${n.coverImage ? `<button class="ghost small" onclick="handleImageUpload(this, img => { getNovel().coverImage = img; save(); render(); })">เปลี่ยนรูป</button>` : ''}
+      </div>
+
+      <div style="flex:1">
+        <div class="row" style="margin-bottom:8px">
+          <span class="badge ${n.status}">${statusBadge}</span>
+        </div>
+        <input value="${esc(n.title)}" onblur="getNovel().title = this.value; save(); renderSidebar();" style="font-size:28px; font-weight:700; border:none; background:transparent; padding:0; margin-bottom:8px; border-bottom:2px dashed var(--border); border-radius:0;">
+        <div class="muted">คลิกที่รูปเพื่อขยาย / กดปุ่มเพื่อเปลี่ยนปก</div>
+      </div>
+      <button class="danger small ghost" onclick="deleteNovel('${n.id}')">ลบเรื่อง</button>
+    </div>
+
+    <div class="stats">
+      <div><b>${n.chapters.length}</b>ตอนทั้งหมด</div>
+      <div><b>${totalChars.toLocaleString()}</b>ตัวอักษรรวม</div>
+      <div><b>${totalWords.toLocaleString()}</b>คำ (นับคร่าวๆ)</div>
+    </div>
+
+    <div class="tabs" id="mainTabs">
+      ${[
+        {id:'info', name:'ข้อมูล & แท็ก'},
+        {id:'plot', name:'โครงเรื่อง'},
+        {id:'world', name:'โลก/เซตติ้ง'},
+        {id:'characters', name:'ตัวละคร'},
+        {id:'chapters', name:'รายชื่อตอน'},
+        {id:'glossary', name:'คลังคำศัพท์'},
+        {id:'ideas', name:'💡 จดไอเดีย'}
+      ].map(t => `<div class="tab ${ui.tab === t.id ? 'active' : ''}" onclick="setTab('${t.id}')">${t.name}</div>`).join('')}
+    </div>
+    <div id="tabContent"></div>
+  `;
+  
+  renderTabsContentOnly();
+}
+
+function renderTabsContentOnly() {
+  const n = getNovel();
+  if(!n) return;
+  
+  const tabs = document.getElementById('mainTabs');
+  if(tabs) {
+      Array.from(tabs.children).forEach(t => t.classList.remove('active'));
+      const activeMap = {info:'ข้อมูล', plot:'โครง', world:'โลก', characters:'ตัวละคร', chapters:'ตอน', glossary:'ศัพท์', ideas:'ไอเดีย'};
+      const activeTab = Array.from(tabs.children).find(t => t.innerText.includes(activeMap[ui.tab]));
+      if(activeTab) activeTab.classList.add('active');
+  }
+
+  const content = document.getElementById('tabContent');
+  if (ui.tab === 'info') renderInfo(content, n);
+  if (ui.tab === 'chapters') renderChapters(content, n);
+  if (ui.tab === 'plot') renderPlot(content, n);
+  if (ui.tab === 'characters') renderCharacters(content, n);
+  if (ui.tab === 'world') renderWorld(content, n);
+  if (ui.tab === 'glossary') renderGlossary(content, n);
+  if (ui.tab === 'ideas') renderIdeas(content, n);
+}
+
+// ---------------- แท็บต่างๆ ---------------- //
+
+function handleAddTag() {
+  const input = document.getElementById('tagInput');
+  const t = input.value.trim();
+  if(t && !getNovel().tags.includes(t)){ 
+    getNovel().tags.push(t); 
+    save(); 
+    renderTabsContentOnly(); 
+    setTimeout(() => document.getElementById('tagInput').focus(), 0);
+  }
+}
+
+function renderInfo(el, n) {
+  const catHtml = state.categoryList.map(c => {
+    const isActive = n.categories.includes(c);
+    const bgColor = isActive ? 'var(--accent)' : 'var(--border)';
+    const textColor = isActive ? '#fff' : 'inherit';
+    return `
+      <span class="chip" style="background:${bgColor}; color:${textColor}; cursor:pointer;" 
+            onclick="const target=getNovel('${n.id}'); const idx=target.categories.indexOf('${esc(c)}'); if(idx>-1) target.categories.splice(idx,1); else target.categories.push('${esc(c)}'); save(); renderTabsContentOnly();">
+        ${esc(c)}
+        <span onclick="event.stopPropagation(); if(confirm('ลบหมวดหมู่ \\'${esc(c)}\\' ออกจากระบบ?')) { state.categoryList = state.categoryList.filter(x=>x!=='${esc(c)}'); state.novels.forEach(nv => nv.categories = nv.categories.filter(x=>x!=='${esc(c)}')); save(); renderTabsContentOnly(); }" 
+              style="margin-left:6px; font-weight:bold; cursor:pointer; opacity:0.6;" title="ลบออกจากระบบ">✕</span>
+      </span>
+    `;
+  }).join('');
+
+  const tagHtml = n.tags.length > 0 ? n.tags.map(t => `<span class="chip" style="background:var(--panel); border:1px solid var(--border);">${esc(t)} <button onclick="getNovel('${n.id}').tags = getNovel('${n.id}').tags.filter(x=>x!=='${esc(t)}'); save(); renderTabsContentOnly();" title="ลบแท็ก">✕</button></span>`).join('') : '<span class="muted">ยังไม่มีแท็ก</span>';
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="field">
+        <label>เรื่องย่อ (Synopsis)</label>
+        <textarea rows="5" placeholder="พิมพ์เรื่องย่อของคุณที่นี่..." onblur="getNovel().synopsis = this.value; save();">${esc(n.synopsis)}</textarea>
+      </div>
+      <div class="field">
+        <label>สถานะ</label>
+        <select onchange="getNovel().status = this.value; save(); renderMain();" style="max-width: 200px;">
+          ${Object.entries(STATUS_LABEL).map(([k, v]) => `<option value="${k}" ${n.status === k ? 'selected' : ''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field" style="margin-top: 24px;">
+        <label>หมวดหมู่ (คลิกข้อความเพื่อเลือก / คลิก ✕ เพื่อลบออกจากระบบ)</label>
+        <div class="row">
+          ${catHtml}
+          <button class="ghost small" onclick="const c = prompt('เพิ่มหมวดหมู่ใหม่:'); if(c && !state.categoryList.includes(c)) { state.categoryList.push(c); save(); renderTabsContentOnly(); }">+ เพิ่มหมวด</button>
+        </div>
+      </div>
+      <div class="field" style="margin-top: 24px;">
+        <label>แท็กนิยาย</label>
+        <div class="row" style="margin-bottom:10px" id="tagListContainer">${tagHtml}</div>
+        <div class="row nowrap" style="max-width: 400px;">
+          <input id="tagInput" placeholder="พิมพ์แท็กแล้วกด เพิ่ม (หรือ Enter)" style="flex:1;" onkeydown="if(event.key==='Enter') handleAddTag()">
+          <button class="small" onclick="handleAddTag()">เพิ่ม</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPlot(el, n) {
+  el.innerHTML = `
+    <div class="row" style="justify-content:space-between; margin-bottom:16px;">
+      <h3>โครงเรื่อง (Plot)</h3>
+      <button class="small ghost" onclick="getNovel().plot.push({id:uid(), title:'', detail:''}); save(); renderTabsContentOnly();">+ เพิ่มเหตุการณ์</button>
+    </div>
+    ${n.plot.map((p, i) => `
+      <div class="plot-board card" style="padding:16px; margin-bottom:12px; border-radius:0 var(--radius) var(--radius) 0;">
+        <div class="row nowrap" style="margin-bottom:8px; justify-content:space-between; align-items:center;">
+            <input value="${esc(p.title)}" placeholder="ชื่อเหตุการณ์ / ช่วงของเรื่อง เช่น Act 1, จุดหักมุม..." onblur="getNovel().plot[${i}].title = this.value; save();" style="flex:1; min-width:0; font-weight:bold; font-size:16px; border:none; background:transparent; border-bottom:1px dashed var(--border); border-radius:0; padding:4px 0;">
+            <button class="btn-close" onclick="if(confirm('ลบเหตุการณ์นี้?')) { getNovel().plot.splice(${i},1); save(); renderTabsContentOnly(); }" title="ลบเหตุการณ์">✕</button>
+        </div>
+        <textarea rows="3" placeholder="รายละเอียดของเหตุการณ์นี้ ความขัดแย้ง ผลลัพธ์..." onblur="getNovel().plot[${i}].detail = this.value; save();" style="border:none; background:transparent; padding:0;">${esc(p.detail)}</textarea>
+      </div>
+    `).join('') || '<div class="empty-state">ยังไม่มีการวางโครงเรื่อง เพิ่มเหตุการณ์เพื่อเรียงลำดับเนื้อหา</div>'}
+  `;
+}
+
+function renderWorld(el, n) {
+  const worldListHtml = n.world.length > 0 ? n.world.map((w, i) => `
+      <div class="card">
+        <div class="row nowrap" style="margin-bottom:12px; justify-content:space-between; align-items:center;">
+          <input value="${esc(w.title)}" placeholder="หัวข้อเซตติ้ง (เช่น กฎเวทมนตร์)..." onblur="getNovel().world[${i}].title = this.value; save();" style="flex:1; min-width:0; font-size:18px; font-weight:bold; border:none; background:transparent; border-bottom:2px solid var(--border); border-radius:0; padding:4px 0;">
+          <button class="btn-close" onclick="if(confirm('ลบข้อมูลนี้?')) { getNovel().world.splice(${i},1); save(); renderTabsContentOnly(); }" title="ลบข้อมูล">✕</button>
+        </div>
+        <textarea rows="4" placeholder="รายละเอียด เช่น กฎของโลก, ภูมิศาสตร์, ระบบเวทมนตร์, สภาพสังคม..." onblur="getNovel().world[${i}].content = this.value; save();" style="border:none; background:var(--bg);">${esc(w.content)}</textarea>
+      </div>
+    `).join('') : '<div class="empty-state">ยังไม่มีข้อมูลเซตติ้งโลก (เช่น กฎหมายเวทมนตร์, ประวัติศาสตร์, ภูมิศาสตร์)</div>';
+
+  el.innerHTML = `
+    <div class="row" style="justify-content:space-between; margin-bottom:16px;">
+      <h3>ข้อมูลโลก / เซตติ้ง</h3>
+      <button class="small ghost" onclick="getNovel().world.push({id:uid(), title:'', content:''}); save(); renderTabsContentOnly();">+ เพิ่มข้อมูลโลก</button>
+    </div>
+    ${worldListHtml}
+  `;
+}
+
+function filterCharacters(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.char-item').forEach(card => {
+    let text = '';
+    card.querySelectorAll('input, textarea').forEach(el => text += el.value.toLowerCase() + ' ');
+    card.style.display = text.includes(q) ? 'block' : 'none';
+  });
+}
+
+function renderCharacters(el, n) {
+  const charListHtml = n.characters.length > 0 ? n.characters.map((c, i) => `
+      <div class="card char-item">
+        <div class="row nowrap" style="align-items:flex-start; gap:20px;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <div class="img-upload-box ${c.image ? 'has-img' : ''}" onclick="triggerUploadOrView(event, '${c.image}', img => { getNovel().characters[${i}].image = img; save(); renderTabsContentOnly(); })">
+              ${c.image ? `<img src="${c.image}">` : ''}
+            </div>
+            ${c.image ? `<button class="ghost small" onclick="handleImageUpload(this, img => { getNovel().characters[${i}].image = img; save(); renderTabsContentOnly(); })">เปลี่ยนรูป</button>` : ''}
+          </div>
+          <div class="col" style="flex:1; min-width:0;">
+            <div class="row nowrap" style="justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <input value="${esc(c.name)}" placeholder="ชื่อตัวละคร" onblur="getNovel().characters[${i}].name = this.value; save();" style="flex:1; min-width:0; font-size:20px; font-weight:bold; border:none; background:transparent; padding:0; border-bottom:2px solid var(--border); border-radius:0;">
+              <button class="btn-close" onclick="if(confirm('ลบตัวละครนี้?')) { getNovel().characters.splice(${i},1); save(); renderTabsContentOnly(); }" title="ลบตัวละคร">✕</button>
+            </div>
+            
+            <div class="row nowrap" style="gap:12px; margin-bottom:12px;">
+              <div class="col" style="flex:1;"><label style="margin-bottom:0;">🏷️ แท็กบทบาท</label><input value="${esc(c.role)}" placeholder="เช่น ตัวเอก, ตัวรอง" onblur="getNovel().characters[${i}].role = this.value; save();" style="padding:6px 10px;"></div>
+              <div class="col" style="flex:1;"><label style="margin-bottom:0;">⏱️ ปรากฏตัวตอนที่</label><input value="${esc(c.firstApp)}" placeholder="เช่น บทนำ, ตอนที่ 5" onblur="getNovel().characters[${i}].firstApp = this.value; save();" style="padding:6px 10px;"></div>
+            </div>
+
+            <div class="grid-2">
+              <div class="col"><label>👁️ ลักษณะภายนอก (Physical)</label><textarea rows="2" placeholder="อายุ, รูปร่าง, จุดเด่น..." onblur="getNovel().characters[${i}].physical = this.value; save();">${esc(c.physical)}</textarea></div>
+              <div class="col"><label>🏠 ภูมิหลัง (Background)</label><textarea rows="2" placeholder="อดีต, ครอบครัว, ปม..." onblur="getNovel().characters[${i}].background = this.value; save();">${esc(c.background)}</textarea></div>
+              <div class="col"><label>🧠 นิสัย (Personality)</label><textarea rows="2" placeholder="ความคิด, สิ่งที่ชอบ..." onblur="getNovel().characters[${i}].personality = this.value; save();">${esc(c.personality)}</textarea></div>
+              <div class="col"><label>⚔️ จุดแข็ง / จุดอ่อน (Traits)</label><textarea rows="2" placeholder="ความสามารถ, ความเปราะบาง..." onblur="getNovel().characters[${i}].traits = this.value; save();">${esc(c.traits)}</textarea></div>
+              <div class="col" style="grid-column: 1 / -1;"><label>📌 ข้อมูลอื่น ๆ</label><textarea rows="2" placeholder="ความสัมพันธ์, ไอเทมประจำตัว, หรือจดข้อมูลเพิ่มเติม..." onblur="getNovel().characters[${i}].otherInfo = this.value; save();">${esc(c.otherInfo)}</textarea></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('') : '<div class="empty-state">ยังไม่มีข้อมูลตัวละคร</div>';
+
+  const relMapHtml = n.relationships.length > 0 ? n.relationships.map((r, i) => `
+        <div class="rel-item row nowrap" style="margin-bottom:8px; align-items:center; background:var(--panel);">
+          <select onchange="getNovel().relationships[${i}].char1 = this.value; save();" style="width:160px; background:var(--bg);">
+            <option value="">เลือกตัวละคร...</option>
+            ${n.characters.map(c => `<option value="${esc(c.name)}" ${r.char1===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
+          </select>
+          <span class="rel-arrow">──(</span>
+          <input placeholder="ระบุสถานะ เช่น ศัตรู, พี่น้อง, แอบรัก" value="${esc(r.rel)}" onblur="getNovel().relationships[${i}].rel = this.value; save();" style="flex:1; min-width:100px; text-align:center; background:var(--bg);">
+          <span class="rel-arrow">)──▶</span>
+          <select onchange="getNovel().relationships[${i}].char2 = this.value; save();" style="width:160px; background:var(--bg);">
+            <option value="">เลือกตัวละคร...</option>
+            ${n.characters.map(c => `<option value="${esc(c.name)}" ${r.char2===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
+          </select>
+          <button class="btn-close" style="margin-left:8px;" onclick="getNovel().relationships.splice(${i},1); save(); renderTabsContentOnly();" title="ลบความสัมพันธ์">✕</button>
+        </div>
+      `).join('') : '<div class="muted text-center" style="text-align:center;">ยังไม่ได้ตั้งค่าความสัมพันธ์ระหว่างตัวละคร</div>';
+
+  el.innerHTML = `
+    <div class="row" style="justify-content:space-between; margin-bottom:16px;">
+      <h3>ประวัติและข้อมูลตัวละคร</h3>
+      <button class="small" onclick="getNovel().characters.push({id:uid(), name:'ตัวละครใหม่', image:'', physical:'', background:'', personality:'', traits:'', role:'', firstApp:'', otherInfo:''}); save(); renderTabsContentOnly();">+ สร้างตัวละคร</button>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <input type="text" placeholder="🔍 ค้นหาตัวละคร (จากชื่อ, บทบาท, ลักษณะ...)" oninput="filterCharacters(this.value)" style="border: 2px solid var(--border); background: var(--panel);">
+    </div>
+
+    ${charListHtml}
+
+    <hr style="border:0; border-top:1px dashed var(--border); margin: 40px 0 20px;">
+    
+    <div class="row" style="justify-content:space-between; margin-bottom:16px;">
+      <h3>ผังความสัมพันธ์ (Relationship Map)</h3>
+      <button class="small ghost" onclick="getNovel().relationships.push({id:uid(), char1:'', char2:'', rel:''}); save(); renderTabsContentOnly();">+ เพิ่มความสัมพันธ์</button>
+    </div>
+    <div class="card" style="background:var(--bg);">
+      ${relMapHtml}
+    </div>
+  `;
+}
+
+function renderChapters(el, n) {
+  if (ui.editingChapterId) {
+    const ch = n.chapters.find(c => c.id === ui.editingChapterId);
+    if (ch) {
+      const stat = countText(ch.content);
+      el.innerHTML = `
+        <div class="card">
+          <div class="row nowrap" style="margin-bottom:16px; gap:12px; align-items:flex-start;">
+            <div style="width:80px;"><label>ลำดับ</label><input type="number" value="${ch.order}" onblur="const c=getNovel().chapters.find(x=>x.id==='${ch.id}'); if(c){ c.order=parseInt(this.value) || c.order; save(); }"></div>
+            <div style="flex:1; min-width:0;"><label>ชื่อตอน</label><input type="text" value="${esc(ch.title)}" placeholder="ชื่อตอน..." onblur="const c=getNovel().chapters.find(x=>x.id==='${ch.id}'); if(c){ c.title=this.value; save(); }" style="font-weight:bold;"></div>
+            <div style="padding-top:24px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;"><input type="checkbox" style="width:auto; margin:0;" ${ch.isDraft ? 'checked' : ''} onchange="const c=getNovel().chapters.find(x=>x.id==='${ch.id}'); if(c){ c.isDraft=this.checked; save(); }"> ร่าง (Draft)</label>
+            </div>
+          </div>
+          <textarea rows="18" placeholder="เริ่มเขียนเนื้อหา..." oninput="document.getElementById('liveStats').textContent = countText(this.value).chars.toLocaleString()+' ตัวอักษร · '+countText(this.value).wordsBySpace.toLocaleString()+' คำ (คร่าวๆ)'" onblur="const c=getNovel().chapters.find(x=>x.id==='${ch.id}'); if(c){ c.content=this.value; c.updatedAt=new Date().toISOString(); save(); }" style="font-size:16px; line-height:1.6;">${esc(ch.content)}</textarea>
+          <div class="muted" style="margin-top:10px; font-weight:600;" id="liveStats">${stat.chars.toLocaleString()} ตัวอักษร · ${stat.wordsBySpace.toLocaleString()} คำ (คร่าวๆ)</div>
+          <div class="row" style="margin-top:20px; justify-content:space-between;">
+            <button onclick="ui.editingChapterId=null; renderTabsContentOnly();">➔ กลับไปหน้ารวมตอน</button>
+            <button class="danger ghost" onclick="if(confirm('ลบตอนนี้?')){ getNovel().chapters = getNovel().chapters.filter(x=>x.id!=='${ch.id}'); ui.editingChapterId=null; save(); renderTabsContentOnly(); }">ลบตอนนี้</button>
+          </div>
+        </div>`;
+      return;
+    }
+  }
+  
+  const sortedChapters = [...n.chapters].sort((a,b) => a.order - b.order);
+  const chapterListHtml = sortedChapters.length > 0 ? sortedChapters.map((c) => `
+      <div class="card row nowrap" style="justify-content:space-between; cursor:pointer; padding:16px; margin-bottom:10px; align-items:center; border-left: 4px solid ${c.isDraft ? 'var(--draft)' : 'var(--done)'}" onclick="ui.editingChapterId='${c.id}'; renderTabsContentOnly();">
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:16px; margin-bottom:6px;"><b style="color:var(--accent); margin-right:8px;">#${c.order}</b> <span style="font-weight:600;">${esc(c.title)}</span> ${c.isDraft ? '<span class="badge draft" style="margin-left:8px">ฉบับร่าง</span>' : '<span class="badge final" style="margin-left:8px">พร้อมเผยแพร่</span>'}</div>
+          <div class="muted">${countText(c.content).chars.toLocaleString()} ตัวอักษร · อัปเดตล่าสุด ${new Date(c.updatedAt).toLocaleDateString('th-TH')}</div>
+        </div>
+        <div class="muted">แก้ไข ➔</div>
+      </div>
+    `).join('') : '<div class="empty-state">ยังไม่มีตอนในนิยายเรื่องนี้ กด "+ สร้างตอนใหม่" เพื่อเริ่มเขียน</div>';
+
+  el.innerHTML = `
+    <div class="row" style="justify-content:space-between; margin-bottom:16px;">
+      <h3>รายชื่อตอนทั้งหมด</h3>
+      <button class="small" onclick="const n=getNovel(); const order = n.chapters.length ? Math.max(...n.chapters.map(c=>c.order))+1 : 1; n.chapters.push({id:uid(), order:order, title:'ตอนที่ '+order, content:'', isDraft:true, updatedAt:new Date().toISOString()}); save(); renderTabsContentOnly();">+ สร้างตอนใหม่</button>
+    </div>
+    ${chapterListHtml}
+  `;
+}
+
+function filterGlossary(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.glossary-item').forEach(item => {
+    let text = '';
+    item.querySelectorAll('input, textarea').forEach(el => text += el.value.toLowerCase() + ' ');
+    item.style.display = text.includes(q) ? 'block' : 'none';
+  });
+}
+
+function renderGlossary(el, n) {
+  const glossaryListHtml = n.glossary.length > 0 ? n.glossary.map((g, i) => `
+        <div class="card glossary-item" style="padding:16px; margin-bottom:0;">
+          <div class="row nowrap" style="justify-content:space-between; margin-bottom:12px; align-items:center;">
+            <input class="g-input" placeholder="คำศัพท์ หรือ โควทคำพูด" value="${esc(g.word)}" onblur="getNovel().glossary[${i}].word = this.value; save();" style="flex:1; min-width:0; font-weight:bold; font-size:16px; border:none; border-bottom:1px solid var(--border); border-radius:0; padding:4px 0;">
+            <button class="btn-close" onclick="if(confirm('ลบรายการนี้?')){ getNovel().glossary.splice(${i},1); save(); renderTabsContentOnly(); }" title="ลบรายการนี้">✕</button>
+          </div>
+          <input class="g-tag" placeholder="แท็ก/หมวดหมู่ (เช่น เวทมนตร์, อาวุธ)" value="${esc(g.tag)}" onblur="getNovel().glossary[${i}].tag = this.value; save();" style="margin-bottom:8px; font-size:13px; color:var(--accent);">
+          <textarea rows="3" placeholder="ความหมาย / คำแปล / สถานการณ์ที่ใช้" onblur="getNovel().glossary[${i}].meaning = this.value; save();" style="margin-bottom:8px; border:none; background:var(--bg);">${esc(g.meaning)}</textarea>
+          <input placeholder="โน้ตเพิ่มเติม (อ้างอิง, ตอนที่ปรากฏ)" value="${esc(g.note)}" onblur="getNovel().glossary[${i}].note = this.value; save();" style="font-size:13px; background:var(--bg);">
+        </div>
+      `).join('') : '<div class="empty-state" style="grid-column: 1 / -1;">จดคำศัพท์เฉพาะ แท็ก หรือโควทสำคัญๆ เก็บไว้ที่นี่</div>';
+
+  el.innerHTML = `
+    <div class="row" style="justify-content:space-between; margin-bottom:16px;">
+      <h3>คลังคำศัพท์เฉพาะ / โควท</h3>
+      <button class="small ghost" onclick="getNovel().glossary.push({id:uid(), word:'', meaning:'', note:'', tag:''}); save(); renderTabsContentOnly();">+ เพิ่มคำศัพท์/โควท</button>
+    </div>
+    <div style="margin-bottom: 20px;">
+      <input type="text" placeholder="🔍 ค้นหาคำศัพท์, โควท, หรือแท็ก..." oninput="filterGlossary(this.value)" style="border: 2px solid var(--border); background: var(--panel);">
+    </div>
+    <div class="grid-2">
+      ${glossaryListHtml}
+    </div>
+  `;
+}
+
+function filterIdeas(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.idea-item').forEach(item => {
+    let text = '';
+    item.querySelectorAll('input, textarea').forEach(el => text += el.value.toLowerCase() + ' ');
+    item.style.display = text.includes(q) ? 'block' : 'none';
+  });
+}
+
+function renderIdeas(el, n) {
+  const ideaListHtml = n.ideas.length > 0 ? n.ideas.map((idea, i) => `
+      <div class="card idea-item" style="background:#fffde7; border-color:#fff59d; padding:16px;">
+        <div class="row nowrap" style="justify-content:space-between; margin-bottom:12px; align-items:center;">
+          <input value="${esc(idea.title)}" placeholder="หัวข้อไอเดีย..." onblur="getNovel().ideas[${i}].title = this.value; save();" style="flex:1; min-width:0; font-size:16px; font-weight:bold; border:none; background:transparent; border-bottom:1px dashed #ccc; border-radius:0; padding:4px 0;">
+          <button class="btn-close" onclick="if(confirm('ลบไอเดียนี้?')){ getNovel().ideas.splice(${i},1); save(); renderTabsContentOnly(); }" title="ลบไอเดีย">✕</button>
+        </div>
+        
+        <div class="img-upload-wide ${idea.image ? 'has-img' : ''}" onclick="triggerUploadOrView(event, '${idea.image}', img => { getNovel().ideas[${i}].image = img; save(); renderTabsContentOnly(); })">
+           ${idea.image ? `<img src="${idea.image}">` : `<div class="placeholder"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12l-4-5z"/></svg>อัปโหลดรูปภาพแนบไอเดีย (คลิก)</div>`}
+        </div>
+        ${idea.image ? `<div style="text-align:right; margin-bottom:8px;"><button class="ghost small" onclick="handleImageUpload(this, img => { getNovel().ideas[${i}].image = img; save(); renderTabsContentOnly(); })">เปลี่ยนรูปภาพ</button></div>` : ''}
+
+        <textarea rows="4" placeholder="รายละเอียดไอเดียแบบคร่าวๆ..." onblur="getNovel().ideas[${i}].detail = this.value; save();" style="border:none; background:transparent; width:100%; margin-top:8px;">${esc(idea.detail)}</textarea>
+      </div>
+    `).join('') : '<div class="empty-state">ยังไม่มีการจดไอเดีย กดปุ่ม "+ เพิ่มไอเดีย" ด้านบน</div>';
+
+  el.innerHTML = `
+    <div class="row" style="justify-content:space-between; margin-bottom:16px;">
+      <h3>💡 ช่องจดไอเดียเพิ่มเติม</h3>
+      <button class="small ghost" onclick="getNovel().ideas.unshift({id:uid(), title:'', detail:'', image:''}); save(); renderTabsContentOnly();">+ เพิ่มไอเดีย</button>
+    </div>
+    <div style="margin-bottom: 20px;">
+      <input type="text" placeholder="🔍 ค้นหาไอเดีย..." oninput="filterIdeas(this.value)" style="border: 2px solid var(--border); background: var(--panel);">
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      ${ideaListHtml}
+    </div>
+  `;
+}
+
+// --- Init ---
+function init() {
+  state = load();
+  if(state.novels.length > 0 && !ui.selectedNovelId) {
+    ui.selectedNovelId = state.novels[0].id;
+  }
+  renderSidebar(); 
+  renderMain();
+}
+
+init();
+</script>
+</body>
+</html>
